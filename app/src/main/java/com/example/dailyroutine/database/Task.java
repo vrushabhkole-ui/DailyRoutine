@@ -13,4 +13,7 @@ public class Task {
     public long dueDate; // Timestamp
     public String alarmToneUri;
     public String daysOfWeek; // e.g., "Mon,Tue,Wed"
+    public long startTime; // For timer
+    public long endTime;   // For timer
+    public boolean isAlarmOn; // New field to enable/disable alarm
 }

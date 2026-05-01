@@ -1,6 +1,7 @@
 package com.example.dailyroutine;
 
 import android.app.AlarmManager;
+import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Context;
@@ -23,8 +24,12 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -34,11 +39,12 @@ public class AddRoutineActivity extends AppCompatActivity {
 
     private EditText etRoutineName;
     private ChipGroup chipGroupCategory, chipGroupDays;
-    private MaterialButton btnSaveRoutine, btnSelectTime, btnSelectTone;
+    private MaterialButton btnSaveRoutine, btnStartTime, btnEndTime, btnSelectTone;
     private AppDatabase db;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    private int selectedHour = -1, selectedMinute = -1;
+    private int startHour = -1, startMinute = -1;
+    private int endHour = -1, endMinute = -1;
     private String selectedToneUri = "";
     private int taskId = -1;
     private boolean isEditMode = false;
@@ -54,10 +60,12 @@ public class AddRoutineActivity extends AppCompatActivity {
         chipGroupCategory = findViewById(R.id.chipGroupCategory);
         chipGroupDays = findViewById(R.id.chipGroupDays);
         btnSaveRoutine = findViewById(R.id.btnSaveRoutine);
-        btnSelectTime = findViewById(R.id.btnSelectTime);
+        btnStartTime = findViewById(R.id.btnStartTime);
+        btnEndTime = findViewById(R.id.btnEndTime);
         btnSelectTone = findViewById(R.id.btnSelectTone);
 
-        btnSelectTime.setOnClickListener(v -> showTimePicker());
+        btnStartTime.setOnClickListener(v -> showTimePicker(true));
+        btnEndTime.setOnClickListener(v -> showTimePicker(false));
         btnSelectTone.setOnClickListener(v -> showTonePicker());
         btnSaveRoutine.setOnClickListener(v -> saveRoutine());
 
@@ -76,28 +84,30 @@ public class AddRoutineActivity extends AppCompatActivity {
 
     private void loadTaskData() {
         executorService.execute(() -> {
-            Task task = null;
             List<Task> allTasks = db.appDao().getAllTasks();
-            for(Task t : allTasks) {
-                if(t.id == taskId) {
-                    task = t;
-                    break;
-                }
-            }
+            Task task = null;
+            for(Task t : allTasks) { if(t.id == taskId) { task = t; break; } }
 
             if (task != null) {
                 Task finalTask = task;
                 runOnUiThread(() -> {
                     etRoutineName.setText(finalTask.title);
                     chipGroupCategory.check(R.id.chipTask);
-                    chipGroupCategory.setEnabled(false); // Can't change category on edit
+                    chipGroupCategory.setEnabled(false);
                     
-                    if (finalTask.dueDate > 0) {
+                    if (finalTask.startTime > 0) {
                         Calendar cal = Calendar.getInstance();
-                        cal.setTimeInMillis(finalTask.dueDate);
-                        selectedHour = cal.get(Calendar.HOUR_OF_DAY);
-                        selectedMinute = cal.get(Calendar.MINUTE);
-                        btnSelectTime.setText(String.format("Time: %02d:%02d", selectedHour, selectedMinute));
+                        cal.setTimeInMillis(finalTask.startTime);
+                        startHour = cal.get(Calendar.HOUR_OF_DAY);
+                        startMinute = cal.get(Calendar.MINUTE);
+                        btnStartTime.setText(String.format("Start: %02d:%02d", startHour, startMinute));
+                    }
+                    if (finalTask.endTime > 0) {
+                        Calendar cal = Calendar.getInstance();
+                        cal.setTimeInMillis(finalTask.endTime);
+                        endHour = cal.get(Calendar.HOUR_OF_DAY);
+                        endMinute = cal.get(Calendar.MINUTE);
+                        btnEndTime.setText(String.format("End: %02d:%02d", endHour, endMinute));
                     }
                     
                     selectedToneUri = finalTask.alarmToneUri;
@@ -105,15 +115,12 @@ public class AddRoutineActivity extends AppCompatActivity {
                         btnSelectTone.setText("Tone Selected");
                     }
 
-                    // Pre-select days
                     if (finalTask.daysOfWeek != null) {
                         String[] days = finalTask.daysOfWeek.split(",");
                         for (String day : days) {
                             for (int i = 0; i < chipGroupDays.getChildCount(); i++) {
                                 Chip chip = (Chip) chipGroupDays.getChildAt(i);
-                                if (chip.getText().toString().equals(day)) {
-                                    chip.setChecked(true);
-                                }
+                                if (chip.getText().toString().equals(day)) chip.setChecked(true);
                             }
                         }
                     }
@@ -132,16 +139,22 @@ public class AddRoutineActivity extends AppCompatActivity {
         }
     }
 
-    private void showTimePicker() {
+    private void showTimePicker(boolean isStart) {
         Calendar c = Calendar.getInstance();
-        int hour = selectedHour != -1 ? selectedHour : c.get(Calendar.HOUR_OF_DAY);
-        int minute = selectedMinute != -1 ? selectedMinute : c.get(Calendar.MINUTE);
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        int minute = c.get(Calendar.MINUTE);
 
         TimePickerDialog timePickerDialog = new TimePickerDialog(this,
                 (view, hourOfDay, minuteOfHour) -> {
-                    selectedHour = hourOfDay;
-                    selectedMinute = minuteOfHour;
-                    btnSelectTime.setText(String.format("Time: %02d:%02d", hourOfDay, minuteOfHour));
+                    if (isStart) {
+                        startHour = hourOfDay;
+                        startMinute = minuteOfHour;
+                        btnStartTime.setText(String.format("Start: %02d:%02d", hourOfDay, minuteOfHour));
+                    } else {
+                        endHour = hourOfDay;
+                        endMinute = minuteOfHour;
+                        btnEndTime.setText(String.format("End: %02d:%02d", hourOfDay, minuteOfHour));
+                    }
                 }, hour, minute, false);
         timePickerDialog.show();
     }
@@ -171,20 +184,9 @@ public class AddRoutineActivity extends AppCompatActivity {
         String name = etRoutineName.getText().toString().trim();
         int selectedChipId = chipGroupCategory.getCheckedChipId();
 
-        if (name.isEmpty()) {
-            etRoutineName.setError("Enter a name");
-            return;
-        }
-
-        if (selectedChipId == -1) {
-            Toast.makeText(this, "Please select a category", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (selectedHour == -1) {
-            Toast.makeText(this, "Please select a time", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (name.isEmpty()) { etRoutineName.setError("Enter a name"); return; }
+        if (selectedChipId == -1) { Toast.makeText(this, "Select a category", Toast.LENGTH_SHORT).show(); return; }
+        if (startHour == -1) { Toast.makeText(this, "Select a start time", Toast.LENGTH_SHORT).show(); return; }
 
         List<Integer> selectedIds = chipGroupDays.getCheckedChipIds();
         StringBuilder daysBuilder = new StringBuilder();
@@ -198,46 +200,128 @@ public class AddRoutineActivity extends AppCompatActivity {
         String days = daysBuilder.toString();
 
         executorService.execute(() -> {
-            Calendar cal = Calendar.getInstance();
-            cal.set(Calendar.HOUR_OF_DAY, selectedHour);
-            cal.set(Calendar.MINUTE, selectedMinute);
-            cal.set(Calendar.SECOND, 0);
+            // New Start Time (normalized to a specific date to compare times only)
+            Calendar newStart = Calendar.getInstance();
+            newStart.set(2000, 0, 1, startHour, startMinute, 0);
+            newStart.set(Calendar.MILLISECOND, 0);
+            long newStartTimeVal = newStart.getTimeInMillis();
 
-            if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
-                cal.add(Calendar.DAY_OF_YEAR, 1);
+            // New End Time (if set, normalized)
+            long newEndTimeVal = 0;
+            if (endHour != -1) {
+                Calendar newEnd = Calendar.getInstance();
+                newEnd.set(2000, 0, 1, endHour, endMinute, 0);
+                newEnd.set(Calendar.MILLISECOND, 0);
+                // If end time is before start time, it means it's on the next day
+                if (newEnd.before(newStart)) newEnd.add(Calendar.DATE, 1);
+                newEndTimeVal = newEnd.getTimeInMillis();
+            } else {
+                // If no end time is set, treat it as a point in time or 1 minute task for collision check
+                newEndTimeVal = newStartTimeVal + 60000;
             }
 
-            long timestamp = cal.getTimeInMillis();
+            // Check for overlaps with existing Tasks
+            List<Task> existingTasks = db.appDao().getAllTasks();
+            for (Task t : existingTasks) {
+                if (isEditMode && t.id == taskId) continue;
+                
+                if (checkOverlap(newStartTimeVal, newEndTimeVal, t.startTime, t.endTime, t.title)) return;
+            }
+
+            // Check for overlaps with existing Habits
+            List<Habit> existingHabits = db.appDao().getAllHabits();
+            for (Habit h : existingHabits) {
+                if (checkOverlap(newStartTimeVal, newEndTimeVal, h.startTime, h.endTime, h.name)) return;
+            }
+
+            // Real timestamps for AlarmManager (today or tomorrow)
+            Calendar calStart = Calendar.getInstance();
+            calStart.set(Calendar.HOUR_OF_DAY, startHour);
+            calStart.set(Calendar.MINUTE, startMinute);
+            calStart.set(Calendar.SECOND, 0);
+            if (calStart.getTimeInMillis() <= System.currentTimeMillis()) calStart.add(Calendar.DAY_OF_YEAR, 1);
+            long finalStartTimeStamp = calStart.getTimeInMillis();
+
+            long finalEndTimeStamp = 0;
+            if (endHour != -1) {
+                Calendar calEnd = Calendar.getInstance();
+                calEnd.set(Calendar.HOUR_OF_DAY, endHour);
+                calEnd.set(Calendar.MINUTE, endMinute);
+                calEnd.set(Calendar.SECOND, 0);
+                if (calEnd.getTimeInMillis() <= calStart.getTimeInMillis()) calEnd.add(Calendar.DAY_OF_YEAR, 1);
+                finalEndTimeStamp = calEnd.getTimeInMillis();
+            }
 
             if (selectedChipId == R.id.chipTask) {
                 Task task = new Task();
                 if (isEditMode) task.id = taskId;
                 task.title = name;
                 task.isCompleted = false;
-                task.dueDate = timestamp;
+                task.dueDate = finalStartTimeStamp;
+                task.startTime = finalStartTimeStamp;
+                task.endTime = finalEndTimeStamp;
                 task.alarmToneUri = selectedToneUri;
                 task.daysOfWeek = days;
-                
-                if (isEditMode) db.appDao().updateTask(task);
-                else db.appDao().insertTask(task);
+                task.isAlarmOn = true;
+                if (isEditMode) db.appDao().updateTask(task); else db.appDao().insertTask(task);
             } else if (selectedChipId == R.id.chipHabit) {
                 Habit habit = new Habit();
                 habit.name = name;
                 habit.streak = 0;
                 habit.isCompletedToday = false;
-                habit.reminderTime = timestamp;
+                habit.reminderTime = finalStartTimeStamp;
+                habit.startTime = finalStartTimeStamp;
+                habit.endTime = finalEndTimeStamp;
                 habit.alarmToneUri = selectedToneUri;
                 habit.daysOfWeek = days;
+                habit.isAlarmOn = true;
                 db.appDao().insertHabit(habit);
             }
 
-            scheduleAlarm(name, timestamp, selectedToneUri);
+            scheduleAlarm(name + " (Start)", finalStartTimeStamp, selectedToneUri);
+            if (finalEndTimeStamp > 0) scheduleAlarm(name + " (End)", finalEndTimeStamp, selectedToneUri);
 
             runOnUiThread(() -> {
-                Toast.makeText(this, isEditMode ? "Routine updated!" : "Routine saved!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Routine Scheduled!", Toast.LENGTH_SHORT).show();
                 finish();
             });
         });
+    }
+
+    private boolean checkOverlap(long newStart, long newEnd, long existStart, long existEnd, String routineName) {
+        // Normalize existing times for comparison
+        Calendar cS = Calendar.getInstance();
+        cS.setTimeInMillis(existStart);
+        Calendar nS = Calendar.getInstance();
+        nS.set(2000, 0, 1, cS.get(Calendar.HOUR_OF_DAY), cS.get(Calendar.MINUTE), 0);
+        nS.set(Calendar.MILLISECOND, 0);
+        long eStart = nS.getTimeInMillis();
+
+        long eEnd;
+        if (existEnd > 0) {
+            Calendar cE = Calendar.getInstance();
+            cE.setTimeInMillis(existEnd);
+            Calendar nE = Calendar.getInstance();
+            nE.set(2000, 0, 1, cE.get(Calendar.HOUR_OF_DAY), cE.get(Calendar.MINUTE), 0);
+            nE.set(Calendar.MILLISECOND, 0);
+            if (nE.before(nS)) nE.add(Calendar.DATE, 1);
+            eEnd = nE.getTimeInMillis();
+        } else {
+            eEnd = eStart + 60000; // 1 min duration
+        }
+
+        // Overlap formula: max(start1, start2) < min(end1, end2)
+        if (Math.max(newStart, eStart) < Math.min(newEnd, eEnd)) {
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("Schedule Conflict")
+                        .setMessage("This time overlaps with your routine: '" + routineName + "'. Please choose a different time.")
+                        .setPositiveButton("OK", null)
+                        .show();
+            });
+            return true;
+        }
+        return false;
     }
 
     private void scheduleAlarm(String title, long timeInMillis, String toneUri) {
@@ -245,19 +329,13 @@ public class AddRoutineActivity extends AppCompatActivity {
         Intent intent = new Intent(this, AlarmReceiver.class);
         intent.putExtra("title", title);
         intent.putExtra("toneUri", toneUri);
-
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, (int) timeInMillis, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
+        int requestCode = (int) timeInMillis; 
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         if (alarmManager != null) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
-                } else {
-                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
-                }
-            } catch (SecurityException e) {
-                Toast.makeText(this, "Alarm permission denied", Toast.LENGTH_SHORT).show();
-            }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
+                else alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
+            } catch (SecurityException e) { Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show(); }
         }
     }
 }

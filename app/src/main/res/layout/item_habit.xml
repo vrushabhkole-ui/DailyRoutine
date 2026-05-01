@@ -5,56 +5,51 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="8dp"
-    app:cardCornerRadius="16dp"
-    app:strokeColor="@color/outline"
-    app:strokeWidth="1dp">
+    app:cardCornerRadius="20dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp">
-
-        <CheckBox
-            android:id="@+id/cbTaskStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+        android:padding="20dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tvTaskTitle"
+                android:id="@+id/tvHabitName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Task Title"
+                android:text="Habit Name"
                 android:textColor="@color/onSurface"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvTaskTime"
+                android:id="@+id/tvHabitStreak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="08:00 AM"
-                android:textColor="@color/outline"
+                android:layout_marginTop="4dp"
+                android:text="🔥 0 day streak"
+                android:textColor="@color/secondary"
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchAlarm"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCompleteHabit"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            app:thumbIcon="@drawable/ic_habits" />
+            android:text="Done" />
 
         <ImageButton
-            android:id="@+id/btnDeleteTask"
+            android:id="@+id/btnDeleteHabit"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"

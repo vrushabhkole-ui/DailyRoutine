@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.dailyroutine.database.Task;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -26,6 +27,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         void onTaskToggle(Task task);
         void onTaskDelete(Task task);
         void onTaskClick(Task task);
+        void onAlarmToggle(Task task, boolean isEnabled);
     }
 
     public TaskAdapter(List<Task> tasks, OnTaskActionListener listener) {
@@ -50,17 +52,22 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         Task task = tasks.get(position);
         holder.tvTitle.setText(task.title);
         holder.cbStatus.setChecked(task.isCompleted);
+        holder.switchAlarm.setChecked(task.isAlarmOn);
 
-        if (task.dueDate > 0) {
-            SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
-            holder.tvTime.setText(sdf.format(new Date(task.dueDate)));
-        } else {
-            holder.tvTime.setText("No time set");
-        }
+        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+        String timeStr = "";
+        if (task.startTime > 0) timeStr += "Start: " + sdf.format(new Date(task.startTime));
+        if (task.endTime > 0) timeStr += " | End: " + sdf.format(new Date(task.endTime));
+        
+        holder.tvTime.setText(timeStr.isEmpty() ? "No time set" : timeStr);
 
         holder.cbStatus.setOnClickListener(v -> listener.onTaskToggle(task));
         holder.btnDelete.setOnClickListener(v -> listener.onTaskDelete(task));
         holder.itemView.setOnClickListener(v -> listener.onTaskClick(task));
+        
+        holder.switchAlarm.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            listener.onAlarmToggle(task, isChecked);
+        });
     }
 
     @Override
@@ -72,6 +79,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         TextView tvTitle, tvTime;
         CheckBox cbStatus;
         ImageButton btnDelete;
+        MaterialSwitch switchAlarm;
 
         public TaskViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -79,6 +87,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             tvTime = itemView.findViewById(R.id.tvTaskTime);
             cbStatus = itemView.findViewById(R.id.cbTaskStatus);
             btnDelete = itemView.findViewById(R.id.btnDeleteTask);
+            switchAlarm = itemView.findViewById(R.id.switchAlarm);
         }
     }
 }

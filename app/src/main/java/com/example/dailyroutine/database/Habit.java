@@ -13,4 +13,7 @@ public class Habit {
     public long reminderTime; // Timestamp for time of day
     public String alarmToneUri;
     public String daysOfWeek; // e.g., "Mon,Tue,Wed"
+    public long startTime; // For timer
+    public long endTime;   // For timer
+    public boolean isAlarmOn; // New field to enable/disable alarm
 }

@@ -41,8 +41,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_DARK_MODE = "darkMode";
     private static final String KEY_USER_NAME = "userName";
     private static final String KEY_USER_IMAGE = "userImageUri";
+    private static final String KEY_WATER_AMOUNT = "waterAmount";
+    private static final String KEY_SLEEP_HOURS = "sleepDuration";
     
-    private TextView tvUserName, tvTaskCount, tvHabitCount;
+    private TextView tvUserName, tvTaskCount, tvHabitCount, tvWaterCount, tvSleepCount;
     private TextView tvUpcomingTaskTitle, tvUpcomingTaskTime, tvProgressSubtitle;
     private LinearProgressIndicator progressDaily;
     private CheckBox cbUpcomingTask;
@@ -53,9 +55,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Apply Dark Mode Preference before onCreate
         applySettings();
-        
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
@@ -109,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
         tvUserName = findViewById(R.id.tvUserName);
         tvTaskCount = findViewById(R.id.tvTaskCount);
         tvHabitCount = findViewById(R.id.tvHabitCount);
+        tvWaterCount = findViewById(R.id.tvWaterCount);
+        tvSleepCount = findViewById(R.id.tvSleepCount);
         tvUpcomingTaskTitle = findViewById(R.id.tvUpcomingTaskTitle);
         tvUpcomingTaskTime = findViewById(R.id.tvUpcomingTaskTime);
         tvProgressSubtitle = findViewById(R.id.tvProgressSubtitle);
@@ -118,8 +120,11 @@ public class MainActivity extends AppCompatActivity {
         ImageButton btnSettings = findViewById(R.id.btnSettings);
 
         findViewById(R.id.cardTasks).setOnClickListener(v -> startActivity(new Intent(this, TaskActivity.class)));
+        findViewById(R.id.cardHabits).setOnClickListener(v -> startActivity(new Intent(this, HabitActivity.class)));
+        findViewById(R.id.cardWater).setOnClickListener(v -> startActivity(new Intent(this, WaterActivity.class)));
+        findViewById(R.id.cardSleep).setOnClickListener(v -> startActivity(new Intent(this, SleepActivity.class)));
+        
         findViewById(R.id.fabAdd).setOnClickListener(v -> startActivity(new Intent(this, AddRoutineActivity.class)));
-
         btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
         cbUpcomingTask.setOnClickListener(v -> {
@@ -153,11 +158,14 @@ public class MainActivity extends AppCompatActivity {
             }
             final int finalTotalHabits = totalHabitsCount;
 
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            float waterVal = prefs.getFloat(KEY_WATER_AMOUNT, 0.0f);
+            float sleepVal = prefs.getFloat(KEY_SLEEP_HOURS, 0.0f);
+
             int totalItems = totalTasksCount + totalHabitsCount;
             int totalCompleted = completedTasksCount + completedHabitsCount;
             final int finalProgress = (totalItems > 0) ? (totalCompleted * 100 / totalItems) : 0;
             
-            // Find first uncompleted task for "Upcoming"
             currentUpcomingTask = null;
             for (Task t : tasks) {
                 if (!t.isCompleted) {
@@ -166,7 +174,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             String userName = prefs.getString(KEY_USER_NAME, "User");
             String userImageUri = prefs.getString(KEY_USER_IMAGE, null);
 
@@ -174,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
                 tvUserName.setText(userName);
                 if (userImageUri != null) {
                     ivAppLogo.setImageURI(Uri.parse(userImageUri));
-                    ivAppLogo.setColorFilter(0); // Show real image if profile pic is used instead of logo
+                    ivAppLogo.setColorFilter(0);
                 } else {
                     ivAppLogo.setImageResource(R.drawable.ic_app_logo);
                     ivAppLogo.setColorFilter(ContextCompat.getColor(this, R.color.primary));
@@ -182,6 +189,8 @@ public class MainActivity extends AppCompatActivity {
 
                 tvTaskCount.setText(finalPendingTasks + " Pending / " + finalCompletedTasks + " Done");
                 tvHabitCount.setText(finalTotalHabits + " Active");
+                tvWaterCount.setText(String.format("%.2fL / 2L", waterVal));
+                tvSleepCount.setText(String.format("%.1fh Goal", sleepVal));
                 
                 tvProgressSubtitle.setText(finalProgress + "% of your goals completed");
                 progressDaily.setProgress(finalProgress);

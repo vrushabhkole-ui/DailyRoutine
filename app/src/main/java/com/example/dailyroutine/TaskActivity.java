@@ -87,4 +87,14 @@ public class TaskActivity extends AppCompatActivity implements TaskAdapter.OnTas
         intent.putExtra("task_id", task.id);
         startActivity(intent);
     }
+
+    @Override
+    public void onAlarmToggle(Task task, boolean isEnabled) {
+        executorService.execute(() -> {
+            task.isAlarmOn = isEnabled;
+            db.appDao().updateTask(task);
+            // In a full implementation, you would also call AlarmManager here
+            // to actually cancel or reschedule the system alarm.
+        });
+    }
 }

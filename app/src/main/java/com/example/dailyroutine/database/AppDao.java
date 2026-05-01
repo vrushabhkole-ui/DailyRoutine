@@ -33,6 +33,9 @@ public interface AppDao {
     @Update
     void updateHabit(Habit habit);
 
+    @Delete
+    void deleteHabit(Habit habit);
+
     // Water
     @Query("SELECT * FROM water_logs")
     List<WaterLog> getAllWaterLogs();
